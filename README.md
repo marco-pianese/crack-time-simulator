@@ -59,7 +59,7 @@ Current reference: hashcat v6.2.6-851 on an NVIDIA RTX 5090, 10 February 2025. R
 
 ## Known limitations
 
-Deliberately not papered over, and repeated in the explainer's footer:
+Deliberately repeated in the explainer's footer:
 
 1. **The laptop scenario is an approximation.** It derives from a Ryzen 7 7700X measured on MD5 only. Processors do relatively better against memory-hard functions like Argon2id, so one ratio across all ten rows understates CPU performance at the slow end.
 2. **Two rates are unverified.** PBKDF2 and Argon2id are tagged `S` — third-party reports, not yet read from raw benchmark output.
@@ -85,9 +85,7 @@ Clone the repository and open `index.html` in a browser. No server, no install, 
 
 ## How it was built
 
-The research came first and the code came last. Before any of this existed there were two research notes, where every figure was tracked down to a primary source and tagged by how reliable it was. Only once the numbers were settled did the pages get written, which is why the content drives the design here rather than the reverse.
-
-It was built in collaboration with Claude, which is the point: the project was the practical exercise for a course on describing work to an AI and judging what comes back. The commit history records that collaboration rather than hiding it. Several things in the final version exist because a draft was wrong and got sent back — the quantum section was rebuilt from scratch after a first version turned out to be unreadable for a newcomer, and the original single page was split in two after it became clear the interactive part had disappeared under the explanation.
+The research came first and the code came last. Before any of this existed there were two research notes, where every figure was tracked down to a primary source and tagged by how reliable it was. It was built in collaboration with Claude, which is the point: the project was the practical exercise for a course on describing work to an AI and judging what comes back.
 
 ## Sources
 
