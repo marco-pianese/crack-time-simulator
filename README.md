@@ -51,26 +51,6 @@ Then the same password against ten storage algorithms at once, for one of four a
 
 **Written for someone starting from nothing.** Every technical term — hash, salt, entropy, H/s, work factor, qubit — is defined with a worked example using real computed values at the point it first appears.
 
-## How the numbers work
-
-Entropy of a randomly generated password:
-
-```
-E = L × log₂(C)        keyspace = C^L = 2^E
-```
-
-Average time for an exhaustive search at `R` guesses per second:
-
-```
-t = 2^E / (2 × R)
-```
-
-The division by two is because the password is found halfway through the space on average. The pattern-aware column skips that division — zxcvbn already reports an expected number of guesses rather than a space size. Halving twice is a factor-of-two error and a common one in tools like this.
-
-All arithmetic runs on base-10 exponents rather than the numbers themselves, so a long password does not overflow to `Infinity`.
-
-The explainer recomputes three reference cases on every load, and they are checked against figures worked out by hand during the research. If they ever stop matching, something in the code has broken — a regression test in public view.
-
 ## Updating the data
 
 Benchmark figures go stale. **`crack.js` is the only place to change a number.** The `BENCH` object at the top holds every algorithm rate and attacker multiplier, each with its reliability tag and the hardware it was measured on, plus the reference source and date. Both pages read from it.
