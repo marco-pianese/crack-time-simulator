@@ -1,0 +1,366 @@
+<title>Crack Time Simulator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="styles.css">
+
+<div class="wrap tight">
+
+  <div class="topbar">
+    <span class="brand"><b>■</b> Crack Time Simulator</span>
+    <span class="topbar-right">
+      <a class="ghost" href="explainer.html">How this works →</a>
+      <button type="button" class="ghost" id="theme-toggle" aria-live="polite">Light mode</button>
+    </span>
+  </div>
+
+  <header>
+    <h1>How long would your password survive?</h1>
+    <p class="lede">Pick a password, pick who is attacking it, and see how long it lasts against each of the ten ways a website might have stored it. The spread across that last column is the point.</p>
+  </header>
+
+  <p class="privacy"><b>Nothing you type leaves this page.</b> Every figure is calculated inside your browser. No password is stored, logged or sent anywhere, and this page cannot crack anything — it only counts.</p>
+
+  <!-- 1 · the password ------------------------------------------------ -->
+  <section id="password">
+    <div class="sec-head">
+      <span class="eyebrow"><span class="sec-num">01</span> &nbsp;The password</span>
+    </div>
+
+    <div class="panel">
+      <div class="tabs" role="tablist" aria-label="Input mode">
+        <button type="button" id="tab-type" role="tab" aria-selected="true" aria-controls="pane-type">Type one</button>
+        <button type="button" id="tab-build" role="tab" aria-selected="false" aria-controls="pane-build">Build a random one</button>
+      </div>
+
+      <div id="pane-type" role="tabpanel" aria-labelledby="tab-type">
+        <label class="field" for="pw">
+          Password to analyse — up to 64 characters
+          <input type="text" id="pw" value="Summer2024!" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="64">
+        </label>
+      </div>
+
+      <div id="pane-build" role="tabpanel" aria-labelledby="tab-build" hidden>
+        <label class="field" for="len">
+          Length — <span id="len-out">16</span> characters
+          <input type="range" id="len" min="4" max="40" value="16">
+        </label>
+        <div class="toggles" role="group" aria-label="Character sets">
+          <label><input type="checkbox" id="c-lower" checked> lowercase</label>
+          <label><input type="checkbox" id="c-upper" checked> uppercase</label>
+          <label><input type="checkbox" id="c-digit" checked> digits</label>
+          <label><input type="checkbox" id="c-sym"> symbols</label>
+        </div>
+        <div class="gen-row">
+          <button type="button" class="btn" id="regen">Generate another</button>
+          <span class="sample" id="built"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 · how unpredictable is it ------------------------------------- -->
+  <section id="strength">
+    <div class="sec-head">
+      <span class="eyebrow"><span class="sec-num">02</span> &nbsp;How unpredictable is it</span>
+    </div>
+
+    <div class="readouts">
+      <div class="readout theory">
+        <span class="r-label">Textbook entropy</span>
+        <span class="r-value" id="bits-theory">—<span class="r-unit"> bits</span></span>
+        <span class="r-note" id="charset-note">—</span>
+      </div>
+      <div class="readout real">
+        <span class="r-label">Pattern-aware estimate</span>
+        <span class="r-value" id="bits-real">—<span class="r-unit"> bits</span></span>
+        <span class="r-note" id="real-note">What an attacker who starts from dictionaries and leaked lists actually needs.</span>
+      </div>
+    </div>
+
+    <div class="verdict" id="gap-verdict">—</div>
+  </section>
+
+  <!-- 3 · the attacker ----------------------------------------------- -->
+  <section id="attacker">
+    <div class="sec-head">
+      <span class="eyebrow"><span class="sec-num">03</span> &nbsp;Who is guessing</span>
+    </div>
+
+    <div class="panel">
+      <div class="fire" id="fire" role="group" aria-label="Attacker hardware"></div>
+      <p class="fire-note" id="fire-caption"></p>
+    </div>
+  </section>
+
+  <!-- 4 · the result -------------------------------------------------- -->
+  <section id="result">
+    <div class="sec-head">
+      <span class="eyebrow"><span class="sec-num">04</span> &nbsp;Time to crack</span>
+      <p class="small">Ten ways a website might store the same password. You never get to choose which one it used.</p>
+    </div>
+
+    <div class="panel">
+      <div class="scroll-x">
+        <table class="ladder">
+          <thead>
+            <tr>
+              <th scope="col">How the website stores it</th>
+              <th scope="col">Guesses per second</th>
+              <th scope="col">Time to crack</th>
+            </tr>
+          </thead>
+          <tbody id="ladder-body"></tbody>
+        </table>
+      </div>
+
+      <label class="field" for="basis" style="max-width:420px">
+        Which strength figure to use
+        <select id="basis">
+          <option value="real" selected>Pattern-aware estimate — realistic</option>
+          <option value="theory">Textbook entropy — optimistic</option>
+        </select>
+      </label>
+
+      <p class="legend">
+        Rates measured on an RTX 5090, hashcat benchmark dated 10 February 2025, scaled to the hardware selected above. Re-checked 25 October 2026: still the most recent primary measurement published.<br>
+        <span class="tag tag-p">P</span> measured directly &nbsp;·&nbsp;
+        <span class="tag tag-d">D</span> calculated from a measured figure &nbsp;·&nbsp;
+        <span class="tag tag-s">S</span> third-party report, not verified at source
+      </p>
+    </div>
+
+    <div class="verdict" id="spread-verdict">—</div>
+
+    <p class="callout"><b>These are stolen-database numbers.</b> Every time above assumes the attacker already has the password file and is guessing offline on their own machines, with nobody to slow them down. On a real login screen they would get a few dozen attempts before being locked out. <a href="explainer.html#offline">Why that distinction matters →</a></p>
+  </section>
+
+  <!-- glossary on demand --------------------------------------------- -->
+  <details id="glossary">
+    <summary>What do these words mean? — entropy, bits, H/s, hash, salt</summary>
+    <div class="details-body">
+      <div class="def">
+        <span class="def-head">Entropy, measured in bits</span>
+        <p>A count of how many passwords yours could have been, as far as the attacker knows. Each extra bit doubles that number, which keeps the figures short instead of twenty digits long.</p>
+        <div class="eg"><b>10 bits</b> = <span class="out">1,024</span> possibilities
+<b>20 bits</b> = <span class="out">about a million</span>
+<b>40 bits</b> = <span class="out">about a trillion</span>
+<b>60 bits</b> = <span class="out">about a billion billion</span></div>
+      </div>
+
+      <div class="def">
+        <span class="def-head">H/s — guesses per second</span>
+        <p><strong>Hashes per second</strong>: how many candidate passwords the attacker tests each second. Ordinary metric prefixes.</p>
+        <div class="eg"><b>1 kH/s</b> = <span class="out">1 thousand</span> per second   <span class="c">k = kilo</span>
+<b>1 MH/s</b> = <span class="out">1 million</span> per second     <span class="c">M = mega</span>
+<b>1 GH/s</b> = <span class="out">1 billion</span> per second     <span class="c">G = giga</span>
+<b>1 TH/s</b> = <span class="out">1 trillion</span> per second    <span class="c">T = tera</span></div>
+      </div>
+
+      <div class="def">
+        <span class="def-head">Hash</span>
+        <p>A website doesn't keep your password. It keeps a one-way fingerprint of it — easy to compute forwards, impossible to reverse. One changed letter gives a completely different result.</p>
+        <div class="eg">MD5(<b>"cat"</b>) = <span class="out">d077f244def8a70e5ea758bd8352fcd8</span>
+MD5(<b>"cot"</b>) = <span class="out">97223fab7b0d4c64c07e6e004c602302</span></div>
+      </div>
+
+      <div class="def">
+        <span class="def-head">Salt</span>
+        <p>A random string the website mixes in before fingerprinting, different for every user. Not secret — it sits beside the hash. It forces an attacker to break each account separately instead of all at once.</p>
+        <div class="eg">MD5(<b>"cat"</b>)            = <span class="out">d077f244def8a70e5ea758bd8352fcd8</span>
+MD5(<b>"7fK2qR" + "cat"</b>) = <span class="out">b0278d78c403b5ad500ad799005ea446</span></div>
+      </div>
+
+      <p class="small">Each of these is explained properly, with the arithmetic worked through, on the <a href="explainer.html">companion page</a>.</p>
+    </div>
+  </details>
+
+  <div class="next">
+    <p><b>Why does the bottom of that table take so long?</b> The companion page works through the arithmetic step by step, shows how to spot a website storing passwords badly, and covers what quantum computing does and does not change.</p>
+    <a class="ghost" href="explainer.html">Read the explainer →</a>
+  </div>
+
+  <footer>
+    <p>Built as a learning project. The figures are sourced and dated, but this is not a security audit, and nothing here should be used to decide that a particular password is safe. Pattern-aware estimates by <a href="https://github.com/dropbox/zxcvbn" target="_blank" rel="noopener">zxcvbn 4.4.2</a>, running entirely in your browser. <a href="explainer.html#sources">All sources and known limitations →</a></p>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/zxcvbn/4.4.2/zxcvbn.js"></script>
+<script src="crack.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var C = window.CRACK;
+  var B = C.BENCH;
+  var MD5 = C.algo("md5").rate;
+
+  C.initTheme("theme-toggle");
+
+  var el = {};
+  ["pw","len","len-out","built","regen","tab-type","tab-build","pane-type","pane-build",
+   "bits-theory","bits-real","charset-note","real-note","gap-verdict","basis",
+   "fire","fire-caption","ladder-body","spread-verdict"
+  ].forEach(function (id) { el[id] = document.getElementById(id); });
+
+  var mode = "type";
+  var attackerId = "gpu1";
+  var zxcvbnReady = typeof window.zxcvbn === "function";
+
+  function currentPassword() { return mode === "type" ? el.pw.value : el.built.textContent; }
+
+  function generate() {
+    var sets = [];
+    if (document.getElementById("c-lower").checked) sets.push("abcdefghijkmnopqrstuvwxyz");
+    if (document.getElementById("c-upper").checked) sets.push("ABCDEFGHJKLMNPQRSTUVWXYZ");
+    if (document.getElementById("c-digit").checked) sets.push("23456789");
+    if (document.getElementById("c-sym").checked) sets.push("!@#$%^&*-_=+?");
+    if (!sets.length) { sets.push("abcdefghijkmnopqrstuvwxyz"); document.getElementById("c-lower").checked = true; }
+    var pool = sets.join(""), n = parseInt(el.len.value, 10);
+    var bytes = new Uint32Array(n);
+    (window.crypto || window.msCrypto).getRandomValues(bytes);
+    var out = "";
+    for (var i = 0; i < n; i++) out += pool.charAt(bytes[i] % pool.length);
+    el.built.textContent = out;
+  }
+
+  /* ── firepower chart ───────────────────────────────────── */
+
+  function renderFire() {
+    var min = 9, max = 14.6;            /* log10 guesses/sec against MD5 */
+    var base = B.attackers[0].factor * MD5;
+    el.fire.innerHTML = B.attackers.map(function (a) {
+      var rate = a.factor * MD5;
+      var pct = Math.max(4, Math.min(100, ((Math.log10(rate) - min) / (max - min)) * 100));
+      var rel = rate / base;
+      return '<button type="button" class="fire-row" data-id="' + a.id + '" aria-pressed="' + (a.id === attackerId) + '">' +
+        '<span class="fire-top"><span class="fire-name">' + C.esc(a.name) + "</span>" +
+        '<span class="fire-rate">' + C.fmtCount(rate) + " guesses/sec" +
+        (a.id === B.attackers[0].id ? "" : " &nbsp;·&nbsp; " + C.fmtNum(rel) + "× the laptop") +
+        "</span></span>" +
+        '<span class="fire-bar"><span class="fire-fill" style="width:' + pct.toFixed(1) + '%"></span></span>' +
+        '<span class="fire-note">' + C.esc(a.plain) + "</span></button>";
+    }).join("");
+  }
+
+  el.fire.addEventListener("click", function (e) {
+    var b = e.target.closest ? e.target.closest(".fire-row") : null;
+    if (!b) return;
+    attackerId = b.dataset.id;
+    renderFire();
+    render();
+  });
+
+  /* ── main render ───────────────────────────────────────── */
+
+  function render() {
+    var pw = currentPassword();
+    var cs = C.charsetOf(pw);
+    var bitsTheory = C.theoryBits(pw);
+
+    var realBits = null, guessesReal = null;
+    if (zxcvbnReady && pw.length) {
+      var z = window.zxcvbn(pw.slice(0, 64));
+      guessesReal = z.guesses_log10;
+      realBits = z.guesses_log10 / C.LOG10_2;
+    }
+
+    el["bits-theory"].innerHTML = (pw.length ? bitsTheory.toFixed(1) : "—") + '<span class="r-unit"> bits</span>';
+    el["charset-note"].textContent = pw.length
+      ? pw.length + " characters, each from " + cs.size + " possible symbols (" + (cs.parts.join(", ") || "none") + ")."
+      : "Type or build a password to begin.";
+
+    if (realBits === null) {
+      el["bits-real"].innerHTML = "—" + '<span class="r-unit"> bits</span>';
+      el["real-note"].textContent = zxcvbnReady
+        ? "Waiting for a password."
+        : "The pattern-matching library did not load, so this estimate is unavailable. The page will not substitute a guess for it.";
+    } else {
+      el["bits-real"].innerHTML = realBits.toFixed(1) + '<span class="r-unit"> bits</span>';
+      el["real-note"].textContent = "What an attacker who starts from dictionaries, leaked lists and predictable substitutions actually needs.";
+    }
+
+    if (!pw.length) {
+      el["gap-verdict"].textContent = "Enter a password above and both figures will appear.";
+    } else if (realBits === null) {
+      el["gap-verdict"].innerHTML = "<strong>Only one figure is available.</strong> Without the pattern-matching library everything below falls back to the textbook number, which overstates anything a person chose.";
+    } else {
+      var gap = bitsTheory - realBits;
+      if (Math.abs(gap) < 1.5) {
+        el["gap-verdict"].innerHTML = "<strong>The two figures agree, which is the good case.</strong> There is no pattern here to shortcut through, so counting combinations and modelling a real attack give the same answer. That agreement is what genuine randomness looks like.";
+      } else if (gap > 0) {
+        var f = Math.pow(2, gap);
+        el["gap-verdict"].innerHTML = "<strong>The textbook figure overstates this password by about " +
+          (f >= 1e6 ? "10^" + Math.round(gap * C.LOG10_2) : C.fmtNum(f)) + "×.</strong> It counts " +
+          bitsTheory.toFixed(0) + " bits purely from which characters appear. A real attacker needs only " +
+          realBits.toFixed(0) + " bits' worth of guessing, because the password is assembled from things that sit in dictionaries and breach lists. The table below uses the realistic figure.";
+      } else {
+        el["gap-verdict"].innerHTML = "<strong>Here the pattern-aware estimate is the higher of the two.</strong> That happens with unusual character choices the simple formula undercounts. Trust the lower figure.";
+      }
+    }
+
+    var atk = C.attacker(attackerId);
+    el["fire-caption"].innerHTML = C.esc(atk.note) + ' <span class="tag tag-' + atk.tag.toLowerCase() + '">' + atk.tag + "</span>";
+
+    var useBasis = (realBits === null) ? "theory" : el.basis.value;
+    var gl10 = null;
+    if (pw.length) gl10 = (useBasis === "theory") ? C.guessesLog10FromBits(bitsTheory) : guessesReal;
+
+    var rows = "", lastGroup = null, fastest = null, slowest = null;
+    B.algorithms.forEach(function (a) {
+      if (a.group !== lastGroup) {
+        lastGroup = a.group;
+        rows += '<tr class="group-row"><td colspan="3">' +
+          (a.group === "fast"
+            ? "Built for speed — wrong for passwords, still widely found"
+            : "Built to be slow on purpose — what a careful website uses") + "</td></tr>";
+      }
+      var L10 = gl10 === null ? NaN : C.crackLog10(gl10, a.rate, atk.factor);
+      var sev = C.severity(L10);
+      if (isFinite(L10)) { if (fastest === null) fastest = L10; slowest = L10; }
+      rows += '<tr><td><span class="band bg' + sev + '"></span><span class="algo-name">' + C.esc(a.name) +
+        ' <span class="tag tag-' + a.tag.toLowerCase() + '">' + a.tag + "</span></span>" +
+        '<span class="algo-params">' + C.esc(a.params) + "</span></td>" +
+        '<td class="rate">' + C.fmtRate(a.rate * atk.factor) + "</td>" +
+        '<td class="ttc sev' + sev + '">' + (gl10 === null ? "—" : C.fmtTime(L10)) + "</td></tr>";
+    });
+    el["ladder-body"].innerHTML = rows;
+
+    if (gl10 === null) {
+      el["spread-verdict"].textContent = "The table fills in once there is a password to measure.";
+    } else {
+      el["spread-verdict"].innerHTML = "<strong>Same password, same attacker, ten storage choices.</strong> Against the weakest row it lasts " +
+        C.fmtTime(fastest) + ". Against the strongest, " + C.fmtTime(slowest) + ". " + C.comparison(slowest) +
+        " Nothing about the password changed between those two rows — only a decision somebody else made.";
+    }
+  }
+
+  /* ── wiring ────────────────────────────────────────────── */
+
+  function setMode(next) {
+    mode = next;
+    var typing = next === "type";
+    el["tab-type"].setAttribute("aria-selected", String(typing));
+    el["tab-build"].setAttribute("aria-selected", String(!typing));
+    el["pane-type"].hidden = !typing;
+    el["pane-build"].hidden = typing;
+    render();
+  }
+  el["tab-type"].addEventListener("click", function () { setMode("type"); });
+  el["tab-build"].addEventListener("click", function () { setMode("build"); });
+
+  var timer = null;
+  el.pw.addEventListener("input", function () { clearTimeout(timer); timer = setTimeout(render, 140); });
+  el.len.addEventListener("input", function () { el["len-out"].textContent = el.len.value; generate(); render(); });
+  ["c-lower", "c-upper", "c-digit", "c-sym"].forEach(function (id) {
+    document.getElementById(id).addEventListener("change", function () { generate(); render(); });
+  });
+  el.regen.addEventListener("click", function () { generate(); render(); });
+  el.basis.addEventListener("change", render);
+
+  generate();
+  renderFire();
+  render();
+})();
+</script>

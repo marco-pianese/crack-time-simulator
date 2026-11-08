@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Why Passwords Break</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="styles.css">
+<style>
+  :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <a class="brand" href="index.html"><b>■</b> Crack Time Simulator</a>
+    <span class="topbar-right">
+      <a class="ghost" href="index.html">← Back to the simulator</a>
+      <button type="button" class="ghost" id="theme-toggle" aria-live="polite">Light mode</button>
+    </span>
+  </div>
+
+  <header id="top">
+    <h1>Why passwords break</h1>
+    <p class="lede">The companion to the simulator. What a website actually does with your password, where its crack-time figures come from, whether you can find out how any given site stores yours — and what quantum computing does and does not change. Written for someone starting from nothing.</p>
+  </header>
+
+  <nav class="agenda" aria-label="Contents">
+    <div class="ag-head">On this page</div>
+    <ol>
+      <li><a href="#storage"><span class="ag-n">01</span><span class="ag-title">What a website does with your password</span><span class="ag-sub">Hashing, salting, and the trick of being slow on purpose.</span></a></li>
+      <li><a href="#maths"><span class="ag-n">02</span><span class="ag-title">The arithmetic, worked through</span><span class="ag-sub">One password, six steps, every intermediate number shown.</span></a></li>
+      <li><a href="#offline"><span class="ag-n">03</span><span class="ag-title">Stolen database, not login screen</span><span class="ag-sub">Two completely different attacks. The simulator measures one of them.</span></a></li>
+      <li><a href="#canyoutell"><span class="ag-n">04</span><span class="ag-title">Can you tell how a website stores yours?</span><span class="ag-sub">Mostly no — but there are tells, and you can check them tonight.</span></a></li>
+      <li><a href="#ashley"><span class="ag-n">05</span><span class="ag-title">One breach, both ways</span><span class="ag-sub">The same stolen database, two storage methods, a millionfold difference.</span></a></li>
+      <li><a href="#quantum"><span class="ag-n">06</span><span class="ag-title">What quantum computing changes</span><span class="ag-sub">Two questions with two very different answers.</span></a></li>
+      <li><a href="#doing"><span class="ag-n">07</span><span class="ag-title">What to do about any of it</span><span class="ag-sub">Five things that follow from the numbers.</span></a></li>
+      <li><a href="#sources"><span class="ag-n">08</span><span class="ag-title">Sources and limitations</span><span class="ag-sub">Every figure's origin, and what this project gets wrong.</span></a></li>
+    </ol>
+  </nav>
+
+  <!-- 01 ─────────────────────────────────────────────────────────── -->
+  <section id="storage">
+    <div class="sec-head">
+      <span class="eyebrow"><span class="sec-num">01</span> &nbsp;What a website does with your password</span>
+      <h2>It doesn't keep it</h2>
+    </div>
+
+    <p class="prose">When you sign up somewhere, a competent website does not store the password you chose. It stores a <strong>hash</strong> of it: a fingerprint produced by a one-way function. Easy to compute in one direction, impossible to run backwards.</p>
+
+    <div class="def">
+      <span class="def-head">Hash — a one-way fingerprint</span>
+      <div class="eg">MD5(<b>"cat"</b>)           = <span class="out">d077f244def8a70e5ea758bd8352fcd8</span>
+MD5(<b>"cot"</b>)           = <span class="out">97223fab7b0d4c64c07e6e004c602302</span>
+MD5(<b>"correct horse"</b>) = <span class="out">3cb4e732631f47e6eb961f34554b7cde</span></div>
+      <p>Change one letter and the result has nothing in common with the previous one. There is no way to look at <code>d077f2…</code> and work out that it came from <code>"cat"</code>. When you log in, the website fingerprints whatever you typed and compares the two fingerprints — it never needs the original.</p>
+    </div>
+
+    <p class="prose">So an attacker who steals the database gets a list of fingerprints, not passwords. Their only option is to guess: fingerprint <code>"cat"</code>, fingerprint <code>"cot"</code>, fingerprint a billion others, and watch for a match. <strong>That guessing loop is the only thing the simulator measures.</strong> Everything else on this page is about what makes the loop fast or slow.</p>
+
+    <div class="def">
+      <span class="def-head">Salt — a random string mixed in first</span>
+      <div class="eg">MD5(<b>"cat"</b>)            = <span class="out">d077f244def8a70e5ea758bd8352fcd8</span>
+MD5(<b>"7fK2qR" + "cat"</b>) = <span class="out">b0278d78c403b5ad500ad799005ea446</span></div>
+      <p>A <strong>salt</strong> is a random string the website adds to your password before fingerprinting, different for every user. It isn't secret — it sits in the database right next to the hash.</p>
+      <p>Its job is to break bulk attacks. Without a salt, everyone who chose <code>password123</code> has an identical fingerprint, so an attacker tests one guess against the entire database at once — or simply looks the fingerprint up in a precomputed table of common passwords. With a unique salt per user, every single account has to be attacked separately. The five fast algorithms at the top of the simulator's table are usually stored without one.</p>
+    </div>
+
+    <h3>The part that produces the enormous spread</h3>
+
+    <p class="prose">MD5 and SHA-256 were designed to be <em>fast</em>, because their original job was checking that a downloaded file arrived intact — you want that to take microseconds. Speed is exactly the wrong property for storing passwords, because the attacker gets the same speed.</p>
+
+    <p class="prose">So bcrypt, scrypt and Argon2id are built to be deliberately, pointlessly <strong>slow</strong>. They repeat the work thousands of times over. Argon2id additionally demands tens of megabytes of memory for every single guess, which graphics cards are bad at supplying — that one design choice removes most of a cracking rig's advantage.</p>
+
+    <div class="def">
+      <span class="def-head">Work factor — the slowness dial</span>
+      <div class="eg"><b>bcrypt cost 5</b>  = 2⁵  =    32 rounds   <span class="c">← benchmark setting, too weak for real use</span>
+<b>bcrypt cost 10</b> = 2¹⁰ = 1,024 rounds   <span class="c">← 32× slower, OWASP's minimum</span>
+<b>bcrypt cost 12</b> = 2¹² = 4,096 rounds   <span class="c">← 128× slower than cost 5</span></div>
+      <p>The dial has to be set somewhere. A website tunes it so that verifying one login takes a fraction of a second — fast enough that you don't notice, slow enough that an attacker making billions of attempts is reduced to thousands. OWASP's guidance is to raise it as high as the server tolerates while staying under a second per login.</p>
+    </div>
+
+    <p class="callout"><b>This is the lever you don't control.</b> Your password's unpredictability is your decision. The storage algorithm and its work factor are the website's decision, you are never told what they chose, and between the top and bottom of the simulator's table there are roughly eight orders of magnitude — a factor of a hundred million.</p>
+  </section>
+
+  <!-- 02 ─────────────────────────────────────────────────────────── -->
+  <section id="maths">
+    <div class="sec-head">
+      <span class="eyebrow"><span class="sec-num">02</span> &nbsp;The arithmetic, worked through</span>
+      <h2>Where the simulator's numbers come from</h2>
+      <p class="prose">One example, start to finish, with every intermediate value written out. The password is <code>brightwinterlamp</code> — sixteen lowercase letters, assumed to have been chosen at random. Follow it once and every figure in the simulator becomes readable.</p>
+    </div>
+
+    <div class="panel">
+      <div class="steps">
+
+        <div class="step">
+          <span class="step-n">1</span>
+          <div class="step-body">
+            <h4>Count the options for one character</h4>
+            <p>Only lowercase letters are used, so each position holds one of 26 possibilities. Had we used uppercase and digits as well it would be 26 + 26 + 10 = 62.</p>
+            <div class="calc">options per position  =  <span class="hl">26</span></div>
+          </div>
+        </div>
+
+        <div class="step">
+          <span class="step-n">2</span>
+          <div class="step-body">
+            <h4>Count every password it could have been</h4>
+            <p>Sixteen positions, 26 independent choices each. Multiply 26 by itself sixteen times.</p>
+            <div class="calc">26¹⁶  =  <span class="hl">43,608,742,899,428,874,059,776</span>
+      ≈  44 thousand billion billion possibilities</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <span class="step-n">3</span>
+          <div class="step-body">
+            <h4>Rewrite it as bits, so it fits on a screen</h4>
+            <p>Twenty-three digits is unreadable. Bits express the same quantity as a power of two — how many times you would have to double 1 to reach it. That is all <code>log₂</code> means.</p>
+            <div class="calc">log₂(43,608,742,899,428,874,059,776)  =  <span class="hl">75.2 bits</span>
+
+<span class="c">the shortcut: 16 characters × log₂(26) = 16 × 4.7 = 75.2</span></div>
+            <p>This is the <strong>Textbook entropy</strong> figure in the simulator.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <span class="step-n">4</span>
+          <div class="step-body">
+            <h4>Halve it, because the attacker gets lucky halfway</h4>
+            <p>An attacker working through the list doesn't have to reach the end. On average they find the answer after checking half of it. So the number of guesses to expect is half the total.</p>
+            <div class="calc">43,608,742,899,428,874,059,776 ÷ 2
+  =  <span class="hl">21,804,371,449,714,437,029,888 guesses</span></div>
+            <p>The pattern-aware column skips this halving, because <a href="https://github.com/dropbox/zxcvbn" target="_blank" rel="noopener">zxcvbn</a> already reports an expected number of guesses rather than a total count. Halving it twice would be a factor-of-two error, and it's a common one in tools like this.</p>
+          </div>
+        </div>
+
+        <div class="step">
+          <span class="step-n">5</span>
+          <div class="step-body">
+            <h4>Divide by the attacker's speed</h4>
+            <p>Here is where the website's storage choice takes over. Same password, same attacker, two different decisions made by whoever built the site.</p>
+            <div class="calc"><span class="c">stored with MD5 — 220,600,000,000 guesses/sec</span>
+21,804,371,449,714,437,029,888 ÷ 220,600,000,000  =  <span class="hl">98,841,212,374 seconds</span>
+
+<span class="c">stored with bcrypt cost 10 — 9,500 guesses/sec</span>
+21,804,371,449,714,437,029,888 ÷ 9,500  =  <span class="hl">2,295,196,994,706,782,720 seconds</span></div>
+          </div>
+        </div>
+
+        <div class="step">
+          <span class="step-n">6</span>
+          <div class="step-body">
+            <h4>Turn seconds into something human</h4>
+            <p>A year is 31,557,600 seconds. Divide.</p>
+            <div class="calc"><span class="c">MD5</span>             98,841,212,374 ÷ 31,557,600  =  <span class="hl">≈ 3,100 years</span>
+<span class="c">bcrypt cost 10</span>  2,295,196,994,706,782,720 ÷ 31,557,600  =  <span class="hl">≈ 73 billion years</span></div>
+            <p>Both figures appear in the simulator whenever the attacker is set to a single graphics card. The spread between them came from one decision, made by someone you never met.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <details>
+      <summary>Live check — the three reference cases, recomputed in your browser</summary>
+      <div class="details-body">
+        <p class="prose">These three cases are written down in the project's research notes. The page recalculates them from scratch each time it loads. If they ever stop matching the notes, something in the code has broken — a cheap regression test in public view.</p>
+        <div class="scroll-x">
+          <table class="plain">
+            <thead><tr><th>Randomly generated password</th><th>Entropy</th><th>Against MD5</th><th>Against bcrypt cost 10</th></tr></thead>
+            <tbody id="selftest"></tbody>
+          </table>
+        </div>
+        <p class="small">One high-end graphics card. All arithmetic is performed on base-10 exponents rather than the numbers themselves, so a very long password does not overflow to infinity.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- 03 ─────────────────────────────────────────────────────────── -->
+  <section id="offline">
+    <div class="sec-head">
+      <span class="eyebrow"><span class="sec-num">03</span> &nbsp;Two different attacks</span>
+      <h2>Stolen database, not login screen</h2>
+      <p class="prose">Every number in the simulator assumes one specific situation. Getting this wrong makes the figures frightening in the wrong direction.</p>
+    </div>
+
+    <div class="cols2">
+      <div class="panel">
+        <h3>Offline — what the simulator measures</h3>
+        <p class="prose" style="font-size:0.9rem">The company was breached and the password file is sitting on the attacker's hard drive. Nobody can slow them down, lock them out, or even notice. They guess as fast as their hardware allows, for as long as they feel like.</p>
+        <dl class="kv">
+          <dt>Limited by</dt><dd>The attacker's hardware budget</dd>
+          <dt>Speed</dt><dd>Thousands to hundreds of billions of guesses per second</dd>
+          <dt>Your defence</dt><dd>Real unpredictability, plus a slow algorithm you didn't choose</dd>
+        </dl>
+      </div>
+      <div class="panel">
+        <h3>Online — your actual login screen</h3>
+        <p class="prose" style="font-size:0.9rem">Somebody is typing guesses into the real website. After a handful of failures they hit a lockout, a CAPTCHA, or a two-factor prompt. They get dozens of attempts, not billions.</p>
+        <dl class="kv">
+          <dt>Limited by</dt><dd>Rate limiting, lockout, CAPTCHA, two-factor</dd>
+          <dt>Speed</dt><dd>A few dozen attempts in total</dd>
+          <dt>Your defence</dt><dd>Simply not being on a list of known passwords</dd>
+        </dl>
+      </div>
+    </div>
+
+    <p class="prose">A mediocre password survives the online attack comfortably. It is the offline case — the one that happens after a breach you had no part in and no warning of — where the figures in the simulator apply.</p>
+  </section>
+
+  <!-- 04 ─────────────────────────────────────────────────────────── -->
+  <section id="canyoutell">
+    <div class="sec-head">
+      <span class="eyebrow"><span class="sec-num">04</span> &nbsp;Can you find out?</span>
+      <h2>Mostly no, and that's the whole problem</h2>
+      <p class="prose">If the storage algorithm decides whether your password falls in hours or holds for millennia, the obvious question is whether you can discover which one a website uses. No law requires disclosure — not even GDPR — and most sites say nothing. But four routes give partial answers.</p>
+    </div>
+
+    <div class="panel">
+      <h3>1 · Some companies publish it</h3>
+      <p class="prose" style="font-size:0.92rem">A minority document their scheme openly. Dropbox has a detailed engineering write-up of theirs. OWASP's own guidance encourages disclosure and points to a crowd-sourced registry where such statements get collected. Security researchers have argued for years that disclosure should be mandatory on the signup page, on the grounds that companies would rather fix weak storage than publicly admit to it.</p>
+    </div>
+
+    <div class="panel">
+      <h3>2 · The software stack gives it away</h3>
+      <p class="prose" style="font-size:0.92rem">Almost nobody writes their own password handling — they use the framework default, and those defaults are public knowledge. The stack is often visible from outside, too: a <code>/wp-login.php</code> page tells you it's WordPress.</p>
+      <div class="scroll-x">
+        <table class="plain">
+          <thead><tr><th>Platform</th><th>Default storage</th></tr></thead>
+          <tbody>
+            <tr><td>WordPress 6.8 and later</td><td>bcrypt, with SHA-384 pre-hashing</td></tr>
+            <tr><td>WordPress before 6.8</td><td>phpass — the old scheme, much weaker</td></tr>
+            <tr><td>Django</td><td>PBKDF2-SHA256</td></tr>
+            <tr><td>Ruby on Rails</td><td>bcrypt</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small">WordPress is a useful illustration of how long these transitions take: the change to bcrypt shipped in 2025, and existing passwords are only upgraded the next time each user logs in. A site running an older version, or a dormant account, still carries the old scheme.</p>
+    </div>
+
+    <div class="panel">
+      <h3>3 · Behavioural tells — the ones you can check tonight</h3>
+      <p class="prose" style="font-size:0.92rem">These are mostly negative signals, and some are conclusive.</p>
+      <div class="do-list">
+        <div class="tell bad"><span class="mark">✗</span><span><b>The site emails you your password.</b> Conclusive, and the worst case. If they can send it to you, they never hashed it. It is sitting in their database in plaintext or in reversible encryption.</span></div>
+        <div class="tell bad"><span class="mark">✗</span><span><b>A low maximum length</b>, like 16 or 20 characters. Hashing produces fixed-length output no matter how long the input is, so a cap suggests the password is being stored in a sized database field rather than hashed.</span></div>
+        <div class="tell bad"><span class="mark">✗</span><span><b>Spaces or certain symbols rejected.</b> A hash function doesn't care what the characters are. Restrictions suggest something is parsing or escaping your password instead of simply hashing it.</span></div>
+        <div class="tell bad"><span class="mark">✗</span><span><b>"Your new password must differ from the old one by more than two characters."</b> They can only check that by comparing against something they can still read.</span></div>
+        <div class="tell bad"><span class="mark">✗</span><span><b>Login works with the wrong capitalisation.</b> Something is normalising your password before storage — usually a sign of an old system.</span></div>
+        <div class="tell good"><span class="mark">✓</span><span><b>A maximum of exactly 72 characters.</b> The opposite signal. That is bcrypt's input limit, so the cap is evidence that bcrypt is in use.</span></div>
+        <div class="tell good"><span class="mark">✓</span><span><b>No composition rules, long passphrases accepted, and a breach-list check at signup.</b> This is current NIST guidance, and following it suggests somebody is paying attention.</span></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>4 · After a breach, you find out</h3>
+      <p class="prose" style="font-size:0.92rem">The algorithm usually becomes public in the aftermath, named in the disclosure or worked out by researchers from the dump itself. Too late to act on, but it is where the simulator's figures stop being theoretical — which is the subject of the next section.</p>
+    </div>
+
+    <p class="callout"><b>The practical conclusion is uncomfortable.</b> For most websites you use, you cannot know, and you cannot influence it. Which means the only sane assumption is that at least one of them is doing it badly — and the only defence that survives that assumption is a different password on every site.</p>
+  </section>
+
+  <!-- 05 ─────────────────────────────────────────────────────────── -->
+  <section id="ashley">
+    <div class="sec-head">
+      <span class="eyebrow"><span class="sec-num">05</span> &nbsp;One breach, both ways</span>
+      <h2>The same stolen database, two storage methods</h2>
+      <p class="prose">The simulator proves its point with arithmetic. This incident proves it with history, and it is the cleanest natural experiment available, because both methods appear in the same stolen file.</p>
+    </div>
+
+    <p class="prose">In 2015 the dating site Ashley Madison was breached — nearly 40 million records. The site had used <strong>bcrypt</strong>, the right choice for the time. But a programming fault meant that a large number of passwords had <em>also</em> been stored using a single round of <strong>MD5</strong>.</p>
+
+    <p class="prose">So the same attackers, working on the same data with the same hardware, faced both storage methods at once:</p>
+
+    <div class="panel">
+      <div class="scroll-x">
+        <table class="plain">
+          <thead><tr><th>Stored with</th><th>Result</th><th>Effort</th></tr></thead>
+          <tbody>
+            <tr><td>bcrypt</td><td>About 4,000 passwords recovered</td><td>One researcher, one week</td></tr>
+            <tr><td>MD5 (the bug)</td><td>Over 11 million passwords recovered</td><td>A team, about ten days</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small">Figures as reported at the time. The bcrypt figure is one researcher's effort rather than a controlled comparison, so treat the ratio as an order of magnitude, not a measurement. <span class="tag tag-s">S</span></p>
+    </div>
+
+    <p class="prose">Roughly a factor of a million in effectiveness, from a storage decision no user could see, discover, or influence. Note what did <em>not</em> change between those two rows: not the passwords, not the attackers, not the hardware. Only the function the site had chosen to run.</p>
+
+    <p class="prose">There is a second lesson in it. bcrypt did its job — the accounts stored that way largely held. What defeated it was a bug that routed passwords around it. Good cryptography fails through implementation mistakes far more often than through anybody breaking the mathematics, which is worth remembering when you reach the quantum section.</p>
+  </section>
+
+  <!-- 06 ─────────────────────────────────────────────────────────── -->
+  <section id="quantum">
+    <div class="sec-head">
+      <span class="eyebrow"><span class="sec-num">06</span> &nbsp;What quantum computing changes</span>
+      <h2>Two questions, two very different answers</h2>
+      <p class="prose">Almost everything written about quantum computing and security collapses two separate questions into one, which is why the subject feels confusing. Separate them and it becomes straightforward.</p>
+    </div>
+
+    <div class="answers">
+      <div class="answer bad">
+        <span class="a-q">Could a quantum computer break the padlock in my browser?</span>
+        <span class="a-verdict">Yes — completely</span>
+        <span class="a-body">Not weakened, broken. This is a genuine threat, taken seriously enough that replacement standards already exist with deadlines attached.</span>
+        <span class="a-who">The algorithm for this is called Shor</span>
+      </div>
+      <div class="answer ok">
+        <span class="a-q">Could a quantum computer guess my password faster?</span>
+        <span class="a-verdict">Barely — probably never</span>
+        <span class="a-body">A modest theoretical speed-up that collapses when you try to build it. Today's graphics card is the better attacker, and will likely stay that way.</span>
+        <span class="a-who">The algorithm for this is called Grover</span>
+      </div>
+    </div>
+
+    <h3>Why the answers differ: solve versus search</h3>
+
+    <p class="prose">The reason one answer is catastrophic and the other is a shrug has nothing to do with quantum physics. It's about what kind of protection each thing uses.</p>
+
+    <div class="pair">
+      <div class="pair-card">
+        <span class="pair-word">Solve</span>
+        <p>Some protection rests on a <strong>puzzle</strong>. The padlock in your browser works because a particular piece of arithmetic is easy to do forwards and ruinously slow to undo. Nothing is being guessed — the security is entirely in that asymmetry.</p>
+        <p>If someone finds a fast way to undo it, the lock doesn't get weaker. It stops being a lock. There is no amount of "make the puzzle bigger" that survives a method which simply solves puzzles.</p>
+        <dl>
+          <dt>Used by</dt><dd>RSA, elliptic curves — the browser padlock, digital signatures</dd>
+          <dt>Quantum</dt><dd>Shor's algorithm solves exactly this kind of puzzle</dd>
+          <dt>Outcome</dt><dd>Total break</dd>
+        </dl>
+      </div>
+      <div class="pair-card">
+        <span class="pair-word">Search</span>
+        <p>Other protection rests on a <strong>list</strong>. Your password hash contains no puzzle and no hidden shortcut. The only way in is to try candidates one after another and watch for a match — exactly what the simulator counts.</p>
+        <p>A quantum computer can search a list somewhat faster. But faster searching is still searching: you can make the list longer, and the defence keeps working. There is nothing to solve.</p>
+        <dl>
+          <dt>Used by</dt><dd>Password hashes, AES, SHA-2 — stored passwords, encrypted files</dd>
+          <dt>Quantum</dt><dd>Grover's algorithm searches lists a bit faster</dd>
+          <dt>Outcome</dt><dd>A modest dent, and probably not even that</dd>
+        </dl>
+      </div>
+    </div>
+
+    <p class="callout"><b>If you remember one sentence from this section:</b> Shor solves, Grover searches. Your password is protected by a list, not a puzzle — so it faces the weak attack, not the devastating one.</p>
+
+    <h3>Before either: what a qubit actually is, and why counting them misleads</h3>
+
+    <div class="def">
+      <span class="def-head">Qubit — and the thousand-to-one problem</span>
+      <p>An ordinary computer bit is either 0 or 1. A <strong>qubit</strong> can hold a blend of both at once, which is what lets certain algorithms explore many possibilities in a single pass.</p>
+      <p>The catch is fragility. Qubits are corrupted constantly by heat, vibration and stray radiation. So you bundle many unreliable <em>physical</em> qubits together and run error correction across them to simulate one trustworthy <em>logical</em> qubit. That exchange rate is currently around a thousand to one.</p>
+      <div class="eg"><b>~1,000 physical qubits</b>  ≈  <span class="out">1 logical qubit</span>  <span class="c">usable for real computation</span>
+
+best demonstrations so far    <span class="out">about 100 logical qubits</span>
+needed to break the padlock   <span class="out">thousands of logical qubits</span></div>
+      <p>This is why a headline announcing "1,000 qubits" tells you much less than it sounds like. The question to ask is how many <em>logical</em> ones.</p>
+    </div>
+
+    <h3>The padlock question, in detail</h3>
+
+    <p class="prose">When your browser shows a padlock, it has just agreed a shared secret with the server using maths that is cheap one way and brutal in reverse. Shor's algorithm removes the brutality. The lock doesn't bend; it evaporates.</p>
+
+    <p class="prose">That threat is real enough that the replacement standards are already published. Here is how the estimated cost of actually doing it has moved:</p>
+
+    <div class="panel">
+      <div class="scroll-x">
+        <table class="plain">
+          <thead><tr><th>Year</th><th>Estimated cost of breaking RSA-2048</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>2012</td><td>About a billion noisy physical qubits</td><td><span class="tag tag-s">S</span></td></tr>
+            <tr><td>2019</td><td>About 20 million noisy qubits, running 8 hours</td><td><span class="tag tag-p">P</span></td></tr>
+            <tr><td>2025</td><td>Under 1 million noisy qubits, running under a week</td><td><span class="tag tag-p">P</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="prose" style="font-size:0.9rem">Read that table carefully, because it is easy to misread in both directions. It is <em>not</em> evidence that the machine is about to arrive. It is evidence that the <strong>estimate</strong> keeps moving, always the same way. The twentyfold drop between 2019 and 2025 came from cleverer algorithms and better error correction, not from new hardware.</p>
+      <p class="prose" style="font-size:0.9rem">Against that: the largest number ever factored by Shor's algorithm is <strong>21</strong>. About 100 logical qubits exist; thousands are needed. The gap is roughly four orders of magnitude, and nothing we read supports naming a year.</p>
+    </div>
+
+    <h3>The password question, in detail</h3>
+
+    <p class="prose">This is the part that gets mangled, so here it is as a picture you can hold onto.</p>
+
+    <div class="panel">
+      <div class="steps">
+        <div class="step">
+          <span class="step-n">A</span>
+          <div class="step-body">
+            <h4>A corridor of lockers</h4>
+            <p>Picture one locker for every password the attacker might try, with the answer inside exactly one of them. An ordinary computer opens them one at a time. A billion possible passwords means up to a billion lockers.</p>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-n">B</span>
+          <div class="step-body">
+            <h4>What Grover's algorithm promises</h4>
+            <p>Grover finds the right locker in roughly the <em>square root</em> of the number of checks. A billion lockers becomes about thirty-two thousand. That sounds devastating, and it is the entire basis of "quantum halves your security".</p>
+            <div class="calc">ordinary computer   1,000,000,000 checks
+Grover             √1,000,000,000  =  <span class="hl">31,623 checks</span></div>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-n">C</span>
+          <div class="step-body">
+            <h4>But you can't buy more of them — the catch that matters</h4>
+            <p>Ordinary cracking scales by purchase. Two machines, half the time. A thousand machines, a thousandth of the time. That is precisely what makes the hardware in the simulator frightening, and why the thousand-card row is so much worse than the laptop.</p>
+            <p>Grover doesn't work like that. Split the corridor between machines and each one still has to do far more than its fair share, and the <em>total</em> effort grows instead of staying flat. The strategy that makes ordinary attacks scale simply stops working.</p>
+            <div class="calc"><span class="c">ordinary, 100 machines</span>  total work <span class="hl">unchanged</span>, finishes 100× sooner
+<span class="c">Grover, 100 machines</span>    total work <span class="hl">10× larger</span>, finishes only 10× sooner</div>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-n">D</span>
+          <div class="step-body">
+            <h4>And every check is desperately slow</h4>
+            <p>A Grover "check" is not a quick glance into a locker. It means running the entire scrambling algorithm backwards inside a fragile quantum circuit, wrapped in error correction. Those operations are vastly slower than an ordinary computer's, and by step C they must happen one after another.</p>
+            <p>Put a generous number on it. Imagine a machine managing a billion Grover steps per second — far beyond anything demonstrated or on any roadmap. Attacking a 128-bit key takes about 2⁶⁴ steps:</p>
+            <div class="calc">2⁶⁴ steps  =  18,446,744,073,709,551,616
+÷ 1,000,000,000 steps per second
+=  18,446,744,073 seconds  =  <span class="hl">585 years</span>, in sequence, on one machine</div>
+            <p>This is why NIST still treats AES-128 as secure, and in fact uses it as the yardstick for measuring the new post-quantum algorithms. The UK's National Cyber Security Centre reached the same conclusion: 256-bit ciphers and hash functions stay safe against Grover.</p>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-n">E</span>
+          <div class="step-body">
+            <h4>And passwords are a worse target than that</h4>
+            <p>Everything above concerns tidy 128-bit keys. Password storage is harder for Grover, not easier, because the machine would have to run <em>Argon2id itself</em> backwards inside the quantum circuit — and Argon2id deliberately demands tens of megabytes of working memory per guess. Holding that in quantum superposition is not something anyone is approaching.</p>
+            <p>Meanwhile the €2,000 graphics card in the simulator makes 220 billion ordinary guesses a second, today, and scales perfectly if you buy a second one. Against password storage specifically, a quantum computer would be the <strong>worse</strong> attacker.</p>
+            <p class="small">This last point is our own reasoning from the published arguments about AES, not something we found stated in a source. It is flagged the same way in the project's research notes, and it needs expert review before anyone repeats it.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3>So what is actually worth worrying about</h3>
+
+    <div class="panel">
+      <p class="prose">The real quantum risk has a name: <strong>harvest now, decrypt later</strong>. An adversary records encrypted traffic today, stores it, and decrypts it in fifteen years when a sufficient machine exists. It works because much of what crosses the network now — medical records, state communications, trade secrets — is still sensitive decades from now.</p>
+      <p class="prose">Notice what it doesn't threaten. A recorded conversation does not become a login. This attacks the padlock on the channel, which is the <em>solve</em> column, and your password lives in the <em>search</em> column.</p>
+      <div class="scroll-x">
+        <table class="plain">
+          <thead><tr><th>Milestone</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>FIPS 203, 204, 205</td><td>Replacement standards approved, 13 August 2024</td></tr>
+            <tr><td>HQC</td><td>Selected as a fifth algorithm, 11 March 2025</td></tr>
+            <tr><td>RSA and elliptic curves</td><td>To be deprecated after 2030, disallowed after 2035</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="prose" style="font-size:0.9rem">That is a migration happening in protocols and standards bodies, on a published schedule. It is not something an individual acts on, and nothing about how you choose passwords should change because of it.</p>
+    </div>
+
+    <div class="panel">
+      <h3>Claims this project refuses to make</h3>
+      <div class="myth"><span class="x">✗</span><span><b>"Quantum computers will crack any password in seconds."</b> No source supports this.</span></div>
+      <div class="myth"><span class="x">✗</span><span><b>"Grover halves your security, so double your password length."</b> The halving is a bound on the number of queries, not an attack anybody can run. The advice doesn't change.</span></div>
+      <div class="myth"><span class="x">✗</span><span><b>"RSA-2048 has already been broken in secret."</b> The largest number factored by Shor's algorithm is 21.</span></div>
+      <div class="myth"><span class="x">✗</span><span><b>"Machine X has N qubits, so we're nearly there."</b> Physical qubits are not logical qubits. Ask for the logical count.</span></div>
+      <div class="myth"><span class="x">✗</span><span><b>Any specific date for when this lands.</b> Nothing we read supports one.</span></div>
+    </div>
+  </section>
+
+  <!-- 07 ─────────────────────────────────────────────────────────── -->
+  <section id="doing">
+    <div class="sec-head">
+      <span class="eyebrow"><span class="sec-num">07</span> &nbsp;What to do about it</span>
+      <h2>Five things that follow from the numbers</h2>
+      <p class="prose">Not generic advice. Each one is a direct consequence of something on this page.</p>
+    </div>
+
+    <div class="panel do-list">
+      <div class="do-item">
+        <span class="do-n">01</span>
+        <div>
+          <h4>A different password everywhere, which means a password manager</h4>
+          <p>Section 04 is the argument: you cannot find out how a website stores your password, so assume at least one of them does it badly. Unique passwords stop that company's mistake from unlocking everything else you own. Forty unique passwords is impossible to remember, so a manager isn't a luxury here — it's what makes the rest achievable.</p>
+        </div>
+      </div>
+      <div class="do-item">
+        <span class="do-n">02</span>
+        <div>
+          <h4>Length beats symbol soup</h4>
+          <p>The two figures in the simulator show why. Every extra character multiplies the attacker's work, while swapping <code>a</code> for <code>@</code> adds almost nothing because that substitution is the first thing they try. Four or five unrelated words beat <code>P@ssw0rd!</code> by an enormous margin and are far easier to type.</p>
+        </div>
+      </div>
+      <div class="do-item">
+        <span class="do-n">03</span>
+        <div>
+          <h4>Two-factor authentication where it matters</h4>
+          <p>Section 03 separates online from offline attacks. Two-factor is what keeps the online column harmless, and it also limits the damage when a leaked password turns out to have been reused. Email, banking and your password manager first.</p>
+        </div>
+      </div>
+      <div class="do-item">
+        <span class="do-n">04</span>
+        <div>
+          <h4>Check whether your passwords have already leaked</h4>
+          <p>The pattern-aware figure drops hardest for passwords that have appeared in a breach, because those are the very first thing an attacker tries. <a href="https://haveibeenpwned.com" target="_blank" rel="noopener">Have I Been Pwned</a> searches known breaches, and most password managers now do this continuously.</p>
+        </div>
+      </div>
+      <div class="do-item">
+        <span class="do-n">05</span>
+        <div>
+          <h4>Don't reorganise your life around quantum computing</h4>
+          <p>Section 06 is the argument. Your password is protected by a list, not a puzzle, so it faces the weak quantum attack. The migration that matters is happening in standards bodies on a schedule running to 2035, and it is not something you act on personally.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 08 ─────────────────────────────────────────────────────────── -->
+  <footer id="sources">
+    <span class="eyebrow"><span class="sec-num">08</span> &nbsp;Sources and limitations</span>
+
+    <p><strong>Reliability markers.</strong> <span class="tag tag-p">P</span> measured directly from raw benchmark output or the text of a standard · <span class="tag tag-d">D</span> calculated from a <span class="tag tag-p">P</span> figure, with the calculation shown · <span class="tag tag-s">S</span> reported by a credible third party, original not yet consulted.</p>
+
+    <p><strong>Known weaknesses, stated rather than hidden.</strong> The laptop figure is scaled from an MD5 measurement and understates what a processor manages against the memory-hungry algorithms. The PBKDF2 and Argon2id rates are third-party reports not yet read from raw output. The Grover-versus-passwords argument in section 06 is our own reasoning rather than a citation. The benchmarks use optimised settings against a single hash, while real attacks run against millions at once. The Ashley Madison comparison is drawn from contemporary reporting, not a controlled experiment.</p>
+
+    <ol>
+      <li>Hashcat v6.2.6-851 benchmark, NVIDIA RTX 5090, 10 February 2025 — <a href="https://gist.github.com/Chick3nman/09bac0775e6393468c2925c1e1363d5c" target="_blank" rel="noopener">raw benchmark output</a></li>
+      <li>Hashcat benchmark, AMD Ryzen 7 7700X, September 2023, used for the laptop ratio — <a href="https://gist.github.com/cococig/2b592488fcbdb8a0301b8c38acaee466" target="_blank" rel="noopener">raw benchmark output</a></li>
+      <li>OWASP Password Storage Cheat Sheet, re-read 25 October 2026 — <a href="https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html" target="_blank" rel="noopener">cheatsheetseries.owasp.org</a></li>
+      <li>NIST SP 800-63B, Digital Identity Guidelines — <a href="https://pages.nist.gov/800-63-4/sp800-63b.html" target="_blank" rel="noopener">pages.nist.gov</a></li>
+      <li>Gidney, <em>How to factor 2048 bit RSA integers with less than a million noisy qubits</em>, 2025 — <a href="https://arxiv.org/abs/2505.15917v1" target="_blank" rel="noopener">arXiv:2505.15917</a></li>
+      <li>Gidney and Ekerå, <em>How to factor 2048-bit RSA integers in 8 hours using 20 million noisy qubits</em>, 2019 — <a href="https://arxiv.org/abs/1905.09749" target="_blank" rel="noopener">arXiv:1905.09749</a></li>
+      <li>UK NCSC, <em>On the practical cost of Grover for AES key recovery</em>, NIST PQC Conference 2024 — <a href="https://csrc.nist.gov/csrc/media/Events/2024/fifth-pqc-standardization-conference/documents/papers/on-practical-cost-of-grover.pdf" target="_blank" rel="noopener">csrc.nist.gov</a></li>
+      <li>NIST Post-Quantum Cryptography project, standards and timeline — <a href="https://csrc.nist.gov/Projects/post-quantum-cryptography/news" target="_blank" rel="noopener">csrc.nist.gov</a></li>
+      <li>WordPress 6.8 password hashing change — <a href="https://make.wordpress.org/core/2025/02/17/wordpress-6-8-will-use-bcrypt-for-password-hashing/" target="_blank" rel="noopener">make.wordpress.org</a></li>
+      <li>Sophos, on the Ashley Madison password cracking — <a href="https://news.sophos.com/en-us/2015/09/10/11-million-ashley-madison-passwords-cracked-in-10-days/" target="_blank" rel="noopener">news.sophos.com</a></li>
+      <li>Dropbox, on how they store passwords — <a href="https://dropbox.tech/security/how-dropbox-securely-stores-your-passwords" target="_blank" rel="noopener">dropbox.tech</a></li>
+      <li>Troy Hunt, on mandatory disclosure of password storage — <a href="https://www.troyhunt.com/should-websites-be-required-to-publicly/" target="_blank" rel="noopener">troyhunt.com</a></li>
+      <li>Pattern-aware estimates by <a href="https://github.com/dropbox/zxcvbn" target="_blank" rel="noopener">zxcvbn 4.4.2</a>, running entirely in your browser</li>
+    </ol>
+
+    <p>Built as a learning project. The figures are sourced and dated, but this is not a security audit, and nothing here should be used to decide that a particular password is safe.</p>
+    <p><a href="index.html">← Back to the simulator</a> &nbsp;·&nbsp; <a href="#top">↑ Top of page</a></p>
+  </footer>
+</div>
+
+<script src="crack.js"></script>
+<script>
+(function () {
+  "use strict";
+  var C = window.CRACK;
+  C.initTheme("theme-toggle");
+
+  var md5 = C.algo("md5").rate;
+  var bcrypt = C.algo("bcrypt").rate;
+  var body = document.getElementById("selftest");
+  if (!body) return;
+
+  body.innerHTML = C.REFERENCE_CASES.map(function (c) {
+    var bits = c.length * Math.log2(c.charset);
+    var g = C.guessesLog10FromBits(bits);
+    return "<tr><td>" + C.esc(c.label) + "</td>" +
+      "<td>" + bits.toFixed(1) + " bits</td>" +
+      "<td>" + C.fmtTime(C.crackLog10(g, md5, 1)) + "</td>" +
+      "<td>" + C.fmtTime(C.crackLog10(g, bcrypt, 1)) + "</td></tr>";
+  }).join("");
+})();
+</script>
+</body>
+</html>
