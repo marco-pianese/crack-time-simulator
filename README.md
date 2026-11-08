@@ -24,8 +24,6 @@ No build step, no backend, no dependencies. Open `index.html` and it works.
 
 **`explainer.html` — the reading.** How hashing, salting and work factors actually work; the crack-time arithmetic worked through step by step on one password; whether you can discover how a given website stores yours; a real breach where both a good and a bad algorithm appear in the same stolen file; and what quantum computing changes.
 
-They were one page until a reader got to the end and proposed, as a new feature, the simulator that was already in there — buried under two thousand words of explanation. The split is the fix.
-
 ## What the simulator shows
 
 Two strength figures side by side:
